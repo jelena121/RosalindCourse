@@ -16,15 +16,27 @@ sub scanwindow {
 	return %subfreq;
 }
 
+sub revCom {
+	my $rev = $_[0];
+	$rev =~ tr/CGTA/GCAT/;
+	$rev = reverse $rev;
+	return $rev;
+}
 
 my $seq;
 my $kmerlength; 
 my $mismatch;
 
 open FILE, $ARGV[0];
+my $count = 0;
 while (my $line = <FILE>) {
 	chomp $line;
-	($seq, $kmerlength, $mismatch) = split(/ /, $line);
+	$count++;
+	if ($count == 1) {
+		$seq = $line;
+	} else {
+		($kmerlength, $mismatch) = split(/ /, $line);
+	}
 }
 close FILE;
 
@@ -39,17 +51,25 @@ foreach my $kmer (keys %kmers) {
 	my @seq1 = split(//, $kmer);
 	
 	foreach my $kmer2 (keys %kmers) {
-			my @seq2 = split(//, $kmer2);
-			my $score = 0;
-						
-			foreach my $i (0 .. $#seq1) {
-				if ($seq1[$i] eq $seq2[$i]) {
-					$score++;
-				} 
-			}			
-			if ($score >= $THRESHOLD) {
-				$results{$kmer}{$kmer2} = $kmers{$kmer2};
+		my @seq2 = split(//, $kmer2);
+		my $score = 0;
+		my $revscore = 0;
+		
+		my $revseq = &revCom($kmer2);
+ 		my @seq3 = split(//, $revseq);
+		
+		foreach my $i (0 .. $#seq1) {
+			if ($seq1[$i] eq $seq2[$i]) {
+				$score++;
+			} 
+			if ($seq1[$i] eq $seq3[$i]) {
+				$revscore++;
 			}
+		}			
+		if ($score >= $THRESHOLD || $revscore >= $THRESHOLD) {
+			$results{$kmer}{$kmer2} = $kmers{$kmer2};
+		}
+
 	}
 }
 
@@ -79,16 +99,18 @@ foreach my $root (keys %results) {
 	
 }
 
-#say $maxscore;
+say $maxscore;
 foreach my $results (keys %{$maxkmers{$maxscore}}) {
-	#say $results;
+	say $results;
 	my @frequentkmers = split(/\t/, $results);
 	my %pwm;
 	foreach my $freqseq (@frequentkmers) {
 		my $score = $kmers{$freqseq};
-		#say "\t$freqseq $score";
+		say "\t$freqseq $score";
 		my @sequence = split(//, $freqseq);
 		foreach my $i (0 .. $#sequence) {	
+			#$pwm{$i}{$sequence[$i]}++;
+		
 			if (exists($pwm{$i}{$sequence[$i]})) {
 				$pwm{$i}{$sequence[$i]} = $pwm{$i}{$sequence[$i]} + $score;
 			}  else {
