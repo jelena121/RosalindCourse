@@ -1,0 +1,5 @@
+ATAG
+
+maximising sum: 
+
+Number of matches to ATAG and matches to revcom CTAT
