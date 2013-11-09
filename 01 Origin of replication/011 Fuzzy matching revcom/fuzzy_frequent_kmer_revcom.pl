@@ -27,6 +27,7 @@ my $seq;
 my $kmerlength; 
 my $mismatch;
 
+#read in parameters
 open FILE, $ARGV[0];
 my $count = 0;
 while (my $line = <FILE>) {
@@ -40,35 +41,49 @@ while (my $line = <FILE>) {
 }
 close FILE;
 
+# match score must be equal or greater than this threshold to count as a match
 my $THRESHOLD = $kmerlength - $mismatch;
 
+# this returns the number of occurrences of each kmer
 my %kmers = &scanwindow ($seq, $kmerlength);
 
 my %results;
+my %kmerscoresum;
+
 
 #find ones that match
 foreach my $kmer (keys %kmers) {
-	my @seq1 = split(//, $kmer);
+	my @kmerseq = split(//, $kmer);
+	#say $kmer;
+	my $revseq = &revCom($kmer2);
+ 	my @kmerrevseq = split(//, $revseq);
 	
+	$kmerscoresum{$kmer} = 0;
+	
+	
+	# foreach kmer, find out whether it or its reverse happens to match the current kmer
 	foreach my $kmer2 (keys %kmers) {
 		my @seq2 = split(//, $kmer2);
 		my $score = 0;
 		my $revscore = 0;
-		
-		my $revseq = &revCom($kmer2);
- 		my @seq3 = split(//, $revseq);
-		
-		foreach my $i (0 .. $#seq1) {
-			if ($seq1[$i] eq $seq2[$i]) {
+			
+		# finds the matching scores for forward and reverse seq
+		foreach my $i (0 .. $#kmerseq) {
+			if ($kmerseq[$i] eq $seq2[$i]) {
 				$score++;
+				
 			} 
-			if ($seq1[$i] eq $seq3[$i]) {
+			if ($kmerrevseq[$i] eq $seq2[$i]) {
 				$revscore++;
 			}
-		}			
-		if ($score >= $THRESHOLD || $revscore >= $THRESHOLD) {
-			$results{$kmer}{$kmer2} = $kmers{$kmer2};
 		}
+		
+					
+		if ($score >= $THRESHOLD || $revscore >= $THRESHOLD) {
+			$kmerscoresum{$kmer} = $kmerscoresum{$kmer} + $kmers{$kmer2};
+			
+		}
+		
 
 	}
 }
@@ -87,6 +102,8 @@ foreach my $root (keys %results) {
 			$maxscore = $score;
 		}	
 	}
+	print "$root\t$score\n";
+	
 	my $numberofseq = scalar @seq;
 	my $matchkey = $seq[0];
 	if ($numberofseq == 1) {
@@ -95,18 +112,20 @@ foreach my $root (keys %results) {
 			$matchkey = $matchkey."\t$seq[$i]";
 		}
 	}
-	$maxkmers{$score}{$matchkey}++;
+	$maxkmers{$score}{$root} = $matchkey;
 	
 }
 
+#things are going wrong here
 say $maxscore;
-foreach my $results (keys %{$maxkmers{$maxscore}}) {
-	say $results;
+foreach my $rootseq (keys %{$maxkmers{$maxscore}}) {
+	my $results =$maxkmers{$maxscore}{$rootseq};
+	say "$rootseq\n\t$results";
 	my @frequentkmers = split(/\t/, $results);
 	my %pwm;
 	foreach my $freqseq (@frequentkmers) {
 		my $score = $kmers{$freqseq};
-		say "\t$freqseq $score";
+		#say "\t$freqseq $score";
 		my @sequence = split(//, $freqseq);
 		foreach my $i (0 .. $#sequence) {	
 			#$pwm{$i}{$sequence[$i]}++;
@@ -122,6 +141,7 @@ foreach my $results (keys %{$maxkmers{$maxscore}}) {
 	
 	my $winnerseq;
 	
+	# maybe this method is wrong? 
 	foreach my $position (sort {$a <=> $b} keys %pwm) {
 		my $max = 0;
 		my $maxbase;
@@ -136,7 +156,7 @@ foreach my $results (keys %{$maxkmers{$maxscore}}) {
 		$winnerseq = $winnerseq.$maxbase;
 		
 	}
-	print "$winnerseq ";
+	print "Winner: $winnerseq\n";
 }
 print "\n";
 
